@@ -17,6 +17,7 @@ type DaoInfo struct {
 	BlockNumber string `json:"blocknumber"`
 	TxHash      string `json:"txhash"`
 	IntegerType string `json:"integertype"`
+	Status      string `json:"status"`
 }
 
 //全局变量
@@ -24,12 +25,13 @@ var (
 	txhash      string
 	blocknumber string
 	integerType string
+	status      string
 	max         *big.Int
 )
 
 func Register() []byte {
 	var data = RegisterInfo{
-		PluginName: "P1",
+		PluginName: "P9",
 		OpCode:     map[string]string{"ADD": "Handle_ADD", "SUB": "Handle_SUB", "MUL": "Handle_MUL"},
 	}
 
@@ -46,6 +48,14 @@ func Handle_ADD(m *collector.AllCollector) (byte, string) {
 	txhash = m.TransInfo.TxHash
 	blocknumber = m.TransInfo.BlockNumber
 	integerType = "ADD"
+	if bx == nil || by == nil || bres == nil {
+		status = "Failed to detect"
+		result := processInteger()
+		if result != "" {
+			return 0x01, result
+		}
+	}
+	status = ""
 	//如果res < x || res < y说明溢出
 	if bres.Cmp(bx) == -1 || bres.Cmp(by) == -1 {
 		result := processInteger()
@@ -63,6 +73,14 @@ func Handle_MUL(m *collector.AllCollector) (byte, string) {
 	txhash = m.TransInfo.TxHash
 	blocknumber = m.TransInfo.BlockNumber
 	integerType = "MUL"
+	if bx == nil || by == nil || bres == nil {
+		status = "Failed to detect"
+		result := processInteger()
+		if result != "" {
+			return 0x01, result
+		}
+	}
+	status = ""
 	if bres.Cmp(big.NewInt(0)) == 0 {
 		return 0x00, ""
 	}
@@ -85,6 +103,14 @@ func Handle_SUB(m *collector.AllCollector) (byte, string) {
 	txhash = m.TransInfo.TxHash
 	blocknumber = m.TransInfo.BlockNumber
 	integerType = "SUB"
+	if bx == nil || by == nil || bres == nil {
+		status = "Failed to detect"
+		result := processInteger()
+		if result != "" {
+			return 0x01, result
+		}
+	}
+	status = ""
 	if bres.Cmp(big.NewInt(0)) == 0 {
 		return 0x00, ""
 	}
@@ -107,17 +133,21 @@ func Handle_SUB(m *collector.AllCollector) (byte, string) {
 func getArgsAndRes(m *collector.AllCollector) (*big.Int, *big.Int, *big.Int) {
 	inOutInfo := m.InsInfo.OpInOut
 	args := inOutInfo.OpArgs
-	var x = args[0]
-	var y = args[1]
-	var res = inOutInfo.OpResult //加减除都是y，乘法是x
-	bx := new(big.Int)
-	by := new(big.Int)
-	bres := new(big.Int)
-	//string => big.Int
-	bx, _ = bx.SetString(x, 10)
-	by, _ = by.SetString(y, 10)
-	bres, _ = bres.SetString(res, 10)
-	return bx, by, bres
+	if len(args) == 2 {
+		var x = args[0]
+		var y = args[1]
+		var res = inOutInfo.OpResult //加减除都是y，乘法是x
+		bx := new(big.Int)
+		by := new(big.Int)
+		bres := new(big.Int)
+		//string => big.Int
+		bx, _ = bx.SetString(x, 10)
+		by, _ = by.SetString(y, 10)
+		bres, _ = bres.SetString(res, 10)
+		return bx, by, bres
+	}
+	return nil, nil, nil
+
 }
 
 func processInteger() string {
@@ -125,6 +155,7 @@ func processInteger() string {
 		blocknumber,
 		txhash,
 		integerType,
+		status,
 	}
 
 	daoJsonData, err := json.Marshal(daoInfo)
