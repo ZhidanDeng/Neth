@@ -1,8 +1,9 @@
 package main
 
 import (
-	"github.com/ethereum/collector"
+	"github.com/zhidandeng/collector"
 	"math/big"
+	"github.com/json-iterator/go"
 )
 
 var json = jsoniter.ConfigCompatibleWithStandardLibrary
